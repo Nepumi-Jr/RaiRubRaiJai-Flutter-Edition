@@ -9,7 +9,7 @@ class SettingPage extends StatelessWidget {
   Widget build(BuildContext context) {
     return const Scaffold(
       body: Center(
-        child: Text('Setting\nApp Ver 0.0.4 :D'),
+        child: Text('Setting\nApp Ver 0.0.5 :D'),
       ),
       bottomNavigationBar: BottomAppBar(
         child: BottomNavigation(focused: BottomPages.setting),

@@ -16,13 +16,13 @@ class TodayDataList extends StatefulWidget {
 }
 
 class _TodayDataListState extends State<TodayDataList> {
-  int maxSize = 30;
+  int maxSize = 10;
 
-  Widget rowDate(BuildContext context, Date date, bool isToday, bool isFirst,
-      User userValue) {
+  Widget rowDate(
+      BuildContext context, Date date, bool isFirst, User userValue) {
     final IncomeAndCost icAtDate = userValue.accountsData.getICAtDay(date);
     final int deltaMoney = icAtDate.income + icAtDate.cost;
-
+    final bool isToday = date == Date.today();
     String todayStr =
         " ${getMonthName(date.month)} ${date.year}${isToday ? " (Today)" : ""} [${deltaMoney}\$]";
     return Padding(
@@ -57,12 +57,18 @@ class _TodayDataListState extends State<TodayDataList> {
         color: account.isPositive
             ? Colors.greenAccent[100]
             : Colors.redAccent[100],
-        child: Padding(
-          padding: const EdgeInsets.all(8),
-          child: AutoSizeText(
-              "${account.icon} ${account.title} : ${account.amount}",
-              style: const TextStyle(fontSize: 24.0),
-              maxLines: 1),
+        child: Row(
+          children: [
+            Expanded(
+              child: Padding(
+                padding: const EdgeInsets.all(8),
+                child: AutoSizeText(
+                    "${account.icon} ${account.title} : ${account.amount}",
+                    style: const TextStyle(fontSize: 24.0),
+                    maxLines: 1),
+              ),
+            ),
+          ],
         ),
       ),
       onTap: () {
@@ -99,6 +105,54 @@ class _TodayDataListState extends State<TodayDataList> {
     );
   }
 
+  Widget genContainerAtDay(
+      BuildContext context, Date date, bool isFirst, User value) {
+    var widgets = <Widget>[];
+    var accountOnDay = value.accountsData.getAccountsOnDate(date);
+    widgets.add(rowDate(context, date, true, value));
+
+    if (accountOnDay.isEmpty) {
+      widgets.add(const Padding(
+          padding: EdgeInsets.only(top: 10),
+          child: Center(child: Text("No data :|\n"))));
+    } else {
+      for (int i = 0; i < accountOnDay.length; i++) {
+        var account = accountOnDay[i];
+        widgets.add(rowAccount(context, account, date, i));
+      }
+    }
+
+    late final colorBackground;
+    final expectedMoney = value.accountsData.getExpectedMoneyAtDay(date);
+    final IncomeAndCost icAtDate = value.accountsData.getICAtDay(date);
+    final int deltaMoney = -(icAtDate.income + icAtDate.cost);
+
+    if (expectedMoney < 0) {
+      colorBackground = const Color.fromARGB(255, 100, 0, 0);
+    } else {
+      if (deltaMoney > expectedMoney * 2) {
+        colorBackground = const Color.fromARGB(255, 150, 0, 50);
+      } else if (deltaMoney > expectedMoney) {
+        colorBackground = Colors.red[100];
+      } else if (deltaMoney > expectedMoney * 0.75) {
+        colorBackground = Colors.yellow[100];
+      } else {
+        colorBackground = Colors.green[50];
+      }
+    }
+
+    return Padding(
+      padding: const EdgeInsets.only(top: 5, bottom: 15),
+      child: Container(
+        padding: const EdgeInsets.all(10),
+        color: colorBackground,
+        child: Column(
+          children: widgets,
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Consumer<User>(
@@ -110,23 +164,13 @@ class _TodayDataListState extends State<TodayDataList> {
 
         dates.sort((a, b) => b.compareTo(a));
 
-        List<Widget> widgets = [];
-        var accountOnToday = value.accountsData.getAccountsOnDate(Date.today());
-        widgets.add(rowDate(context, Date.today(), true, true, value));
-        if (accountOnToday.isEmpty) {
-          widgets.add(const Padding(
-              padding: EdgeInsets.only(top: 10),
-              child: Center(child: Text("No data :|\n"))));
-        } else {
-          for (int i = 0; i < accountOnToday.length; i++) {
-            var account = accountOnToday[i];
-            widgets.add(rowAccount(context, account, Date.today(), i));
-          }
-        }
-        widgets.add(Divider(
-          color: Theme.of(context).primaryColor,
-          thickness: 1,
-        ));
+        List<Widget> widgets = [
+          genContainerAtDay(context, Date.today(), false, value),
+          Divider(
+            color: Theme.of(context).primaryColor,
+            thickness: 1,
+          )
+        ];
 
         bool isFirst = true;
         for (var date in dates) {
@@ -134,13 +178,8 @@ class _TodayDataListState extends State<TodayDataList> {
           if (accountOnDate.isEmpty || date.compareTo(Date.today()) == 0) {
             continue;
           }
-          widgets.add(rowDate(context, date, false, isFirst, value));
+          widgets.add(genContainerAtDay(context, date, isFirst, value));
           isFirst = false;
-
-          for (int i = 0; i < accountOnDate.length; i++) {
-            var account = accountOnDate[i];
-            widgets.add(rowAccount(context, account, date, i));
-          }
 
           if (widgets.length > maxSize) {
             widgets.add(
@@ -149,7 +188,7 @@ class _TodayDataListState extends State<TodayDataList> {
                 child: Center(
                   child: ElevatedButton(
                     onPressed: () => setState(() {
-                      maxSize += maxSize ~/ 3 + 30;
+                      maxSize += maxSize ~/ 3 + 10;
                     }),
                     child: const Text(
                       "Load more...",
