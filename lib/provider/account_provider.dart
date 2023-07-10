@@ -7,6 +7,7 @@ import 'package:flutter/material.dart';
 
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:http/http.dart' as http;
 
 class AccountsData {
@@ -172,6 +173,7 @@ class User extends ChangeNotifier {
     scopes: _scope,
   );
   late GoogleSignInAccount? user;
+  late UserCredential firebaseUserCredential;
   late CollectionReference _userCloudData;
 
   String email = "bruh@bruh.com";
@@ -266,30 +268,43 @@ class User extends ChangeNotifier {
   }
 
   Future<void> doLogin() async {
-    await _googleSignIn.signIn().then((value) {
-      user = value;
+    user = await _googleSignIn.signIn();
+    final GoogleSignInAuthentication googleAuth = await user!.authentication;
+    final credential = GoogleAuthProvider.credential(
+      accessToken: googleAuth.accessToken,
+      idToken: googleAuth.idToken,
+    );
+    FirebaseAuth.instance.signInWithCredential(credential).then((value) {
+      firebaseUserCredential = value;
       initData();
-    }).catchError((error) {
-      print("!!!!!!!!!!!!แตก $error");
     });
   }
 
   Future<void> doLoginSilent() async {
-    await _googleSignIn.signInSilently().then((value) {
-      user = value;
+    try {
+      user = await _googleSignIn.signInSilently();
+    } catch (e) {
+      print(";;;;;;;;;;;;;;;;;;GOT ERROR $e");
+      return;
+    }
+    if (user == null) return;
+    final GoogleSignInAuthentication googleAuth = await user!.authentication;
+    final credential = GoogleAuthProvider.credential(
+      accessToken: googleAuth.accessToken,
+      idToken: googleAuth.idToken,
+    );
+    FirebaseAuth.instance.signInWithCredential(credential).then((value) {
+      firebaseUserCredential = value;
       initData();
-    }).catchError((error) {
-      print(">>>>>>>>>>>>>>>แตก $error");
     });
   }
 
   Future<void> doLogout() async {
+    await FirebaseAuth.instance.signOut();
     await _googleSignIn.signOut().then((value) {
       user = null;
       accountsData = AccountsData({}, onUpdateData: onUpdateData);
       notifyListeners();
-    }).catchError((error) {
-      print("!!!!!!!!!!!!แตก $error");
     });
   }
 
